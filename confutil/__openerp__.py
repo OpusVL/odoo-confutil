@@ -30,7 +30,7 @@
     
     'category': 'Technical',
     
-    'description': """Post-installation configuration helpers,
+    'description': """Post-installation configuration helpers.
 """,
     'images': [
     ],
@@ -43,7 +43,7 @@
     'test': [
     ],
     'license': 'AGPL-3',
-    'installable': True,
+    'installable': False,
     'auto_install': False,
 
 }
