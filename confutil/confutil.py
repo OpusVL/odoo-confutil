@@ -189,8 +189,7 @@ def create_consolidation_account(cr, registry, uid, company, code, name, childre
         'type': 'consolidation',
         'user_type': account_type_view_id,
         'child_consol_ids': [
-            (ADD_EXISTING_ID, child_id, False) for child_id in children
-            for child in children
+            (ADD_EXISTING_ID, child, False) for child in children
         ],
     }
     return registry['account.account'].create(cr, uid, data, context=context)
