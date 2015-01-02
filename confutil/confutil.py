@@ -196,6 +196,60 @@ def create_consolidation_account(cr, registry, uid, company, code, name, childre
     return registry['account.account'].create(cr, uid, data, context=context)
 
 
+def set_default_customer_sale_pricelist(cr, registry, uid, company, pricelist, context=None):
+    """Set the default customer sale pricelist for a company.
+    """
+    field_id = get_field_id(cr, registry, uid,
+        model_name='res.partner',
+        field_name='property_product_pricelist',
+        context=context,
+    )
+    ir_property = registry['ir.property']
+    existing_ids = ir_property.search(cr, uid,
+        [
+            ('company_id', '=', company.id),
+            ('fields_id', '=', field_id),
+            ('res_id', '=', False),
+        ],
+        context=context,
+    )
+    if existing_ids:
+        ir_property.unlink(cr, uid, existing_ids, context=context)
+    ir_property.create(cr, uid,
+        dict(
+            company_id=company.id,
+            fields_id=field_id,
+            res_id=False,
+            type='many2one',
+            value_reference=makeref('product.pricelist', pricelist.id),
+        ),
+        context=context,
+    )
+
+def makeref(model_name, identifier):
+    """Return a string reference for an object in the database.
+
+    e.g.
+
+    >>> makeref('product.pricelist', 3)
+    'product.pricelist,3'
+    """
+    return '%s,%d' % (model_name, identifier)
+
+
+def get_field_id(cr, registry, uid, model_name, field_name, context=None):
+    """Return the id for a model field's record in the Odoo database.
+    """
+    return get_exactly_one_id(
+        registry['ir.model.fields'], cr, uid,
+        [
+            ('model', '=', model_name),
+            ('name', '=', field_name),
+        ],
+        context=context,
+    )
+
+# TODO Change SUPERUSR_ID in below to 'uid'
 def select_sale_user_level(cr, registry, SUPERUSER_ID, user, level, context=None):
     """Set user's access level for the Sale application.
 
