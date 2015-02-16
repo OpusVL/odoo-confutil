@@ -90,20 +90,8 @@ def setup_chart_of_accounts(cr, registry, uid, company_id, chart_template_id, co
     if code_digits:
         data.update({'code_digits': code_digits})
 
-    _logger.debug('XXXXXXXXXXXXXXX CREATE XXXXXXXXXXXXXXXXXXXXX')
     conf_id = chart_wizard.create(cr, uid, data, context=context)
-    #Needed .update statement because odoo overrides code_digits passed into .create function
-    #import pdb;pdb.set_trace()
-    #_logger.debug('XXXXXXXXXXXXXXX BROWSE XXXXXXXXXXXXXXXXXXXXX')
-    #conf = chart_wizard.browse(cr, uid, conf_id, context=context)
-    #_logger.debug('conf.code_digits = %r' % (conf.code_digits,))
-    #_logger.debug('XXXXXXXXXXXXXXX UPDATE XXXXXXXXXXXXXXXXXXXXX')
-    #conf.update(data)
-    #_logger.debug('conf.code_digits = %r' % (conf.code_digits,))
-    _logger.debug('XXXXXXXXXXXXXXX EXECUTE XXXXXXXXXXXXXXXXXXXXX')
     chart_wizard.execute(cr, uid, [conf_id], context=context)
-    #_logger.debug('conf.code_digits = %r' % (conf.code_digits,))
-    _logger.debug('XXXXXXXXXXXXXXX END XXXXXXXXXXXXXXXXXXXXX')
 
 def create_fiscal_year(cr, registry, uid, company_id, name, code, start_date, end_date, context=None):
     fy_model = registry['account.fiscalyear']
