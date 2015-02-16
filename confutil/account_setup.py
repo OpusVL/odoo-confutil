@@ -28,7 +28,10 @@ The function you probably want to use is setup_company_accounts()
 
 from datetime import date
 
-def setup_company_accounts(cr, registry, uid, company, chart_template, code_digits, context=None):
+import logging
+_logger = logging.getLogger(__name__)
+
+def setup_company_accounts(cr, registry, uid, company, chart_template, code_digits=None, context=None):
     """This sets up accounts, fiscal year and periods for the given company.
 
     company: A res.company object
@@ -68,9 +71,9 @@ def unconfigured_company_ids(cr, registry, uid, context=None):
     account_installer = registry['account.installer']
     return account_installer.get_unconfigured_cmp(cr, uid, context=context)
 
-def setup_chart_of_accounts(cr, registry, uid, company_id, chart_template_id, code_digits, context=None):
+def setup_chart_of_accounts(cr, registry, uid, company_id, chart_template_id, code_digits=None, context=None):
     chart_wizard = registry['wizard.multi.charts.accounts']
-    defaults =  chart_wizard.default_get(cr, uid, ['bank_accounts_id', 'currency_id'], context=context)
+    defaults = chart_wizard.default_get(cr, uid, ['bank_accounts_id', 'currency_id'], context=context)
 
     bank_accounts_spec = defaults.pop('bank_accounts_id')
     bank_accounts_id = [(0, False, i) for i in bank_accounts_spec]
@@ -79,15 +82,28 @@ def setup_chart_of_accounts(cr, registry, uid, company_id, chart_template_id, co
     data.update({
         "chart_template_id": chart_template_id,
         'company_id': company_id,
-        'code_digits': code_digits,
         'bank_accounts_id': bank_accounts_id,
     })
 
     onchange = chart_wizard.onchange_chart_template_id(cr, uid, [], data['chart_template_id'], context=context)
     data.update(onchange['value'])
+    if code_digits:
+        data.update({'code_digits': code_digits})
 
+    _logger.debug('XXXXXXXXXXXXXXX CREATE XXXXXXXXXXXXXXXXXXXXX')
     conf_id = chart_wizard.create(cr, uid, data, context=context)
+    #Needed .update statement because odoo overrides code_digits passed into .create function
+    #import pdb;pdb.set_trace()
+    #_logger.debug('XXXXXXXXXXXXXXX BROWSE XXXXXXXXXXXXXXXXXXXXX')
+    #conf = chart_wizard.browse(cr, uid, conf_id, context=context)
+    #_logger.debug('conf.code_digits = %r' % (conf.code_digits,))
+    #_logger.debug('XXXXXXXXXXXXXXX UPDATE XXXXXXXXXXXXXXXXXXXXX')
+    #conf.update(data)
+    #_logger.debug('conf.code_digits = %r' % (conf.code_digits,))
+    _logger.debug('XXXXXXXXXXXXXXX EXECUTE XXXXXXXXXXXXXXXXXXXXX')
     chart_wizard.execute(cr, uid, [conf_id], context=context)
+    #_logger.debug('conf.code_digits = %r' % (conf.code_digits,))
+    _logger.debug('XXXXXXXXXXXXXXX END XXXXXXXXXXXXXXXXXXXXX')
 
 def create_fiscal_year(cr, registry, uid, company_id, name, code, start_date, end_date, context=None):
     fy_model = registry['account.fiscalyear']
