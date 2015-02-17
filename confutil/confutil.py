@@ -30,6 +30,82 @@ screens need to be made (so execute() has to be called afterwards).
 import logging
 _logger = logging.getLogger(__name__)
 
+class Lookup(object):
+    """Implements common lookups.
+
+    Initialise as follows:
+
+        lookup = Lookup(cr, registry, SUPERUSER_ID, context=context.copy())
+
+    Then you can do things like:
+
+        map(lookup.tax_id_by_code, ['UKST1', 'USST1', 'FRST1'])
+    """
+    def __init__(self, cr, registry, uid, context=None):
+        self._cr = cr
+        self._registry = registry
+        self._uid = uid
+        self._context = context
+
+    def tax_id_by_code(self, code):
+        """Return account.tax id matching given tax_code.
+
+        tax_code: The tax code you're interested in, e.g. ST1.
+                  Actually the value of 'description' field on account.tax
+
+        Return type: int
+
+        Raises as per get_exactly_one_id if there isn't precisely one match.
+        """
+        taxes_model = self._registry['account.tax']
+        return get_exactly_one_id(
+            taxes_model, self._cr, self._uid,
+            [('description', '=', code),],
+            context=self._context,
+        )
+
+    def xmlid(self, module, xmlid):
+        """Return the object with XMLID = 'module.xmlid'.
+
+        module: The module bit of the id (the bit before the dot)
+        xmlid: The bit after the dot
+        """
+        IMD = self._registry['ir.model.data']
+        return IMD.get_object(self._cr, self._uid, module, xmlid)
+
+
+def set_global_default_product_customer_taxes(cr, registry, uid, company_id, tax_ids, context=None):
+    """Set global default sales taxes for new products.
+
+    tax_ids: A list of integers which are ids of account.tax objects.
+
+    Usually you'll want to have one tax id from each company in a multicompany system,
+    or a singleton list containing only one for a single-company system.
+    """
+    registry['ir.values'].set_default(cr, uid,
+        model='product.template',
+        field_name='taxes_id',
+        for_all_users=True,
+        company_id=company_id,
+        value=tax_ids,
+    )
+
+def set_global_default_product_supplier_taxes(cr, registry, uid, company_id, tax_ids, context=None):
+    """Set global default purchase taxes for new products.
+
+    tax_ids: A list of integers which are ids of account.tax objects.
+
+    Usually you'll want to have one tax id from each company in a multicompany system,
+    or a singleton list containing only one for a single-company system.
+    """
+    registry['ir.values'].set_default(cr, uid,
+        model='product.template',
+        field_name='supplier_taxes_id',
+        for_all_users=True,
+        company_id=company_id,
+        value=tax_ids,
+    )
+
 def set_default_taxes(cr, registry, uid, company, sales_code, purchase_code, context=None):
     """Set the default tax codes for the given company.
 
@@ -397,7 +473,7 @@ def get_maybe_id(model, cr, uid, domain, context=None):
 
 
 def refgetter(cr, registry, uid):
-    """Return a function with simplified interface to get references.
+    """DEPRECATED Return a function with simplified interface to get references.
 
     cr: Cursor
     registry: Registry object
@@ -405,17 +481,16 @@ def refgetter(cr, registry, uid):
 
     Returns a function that takes:
 
-    module: The module bit of the id (the bit before the dot)
-    xmlid: The bit after the dot
+        module: The module bit of the id (the bit before the dot)
+        xmlid: The bit after the dot
 
-    and returns the object matching those items.
+    and returns the object with XMLID = 'module.xmlid'.
 
     The purpose of this function is to make a function that's short and
     succinct to call, because you'll be using it a lot in a
     post_init_hook, by closing on the arguments that will remain the same.
     """
-    return (lambda module, xmlid:
-        registry['ir.model.data'].get_object(cr, uid, module, xmlid)
-    )
+    _logger.warn("refgetter: DEPRECATED: Please use xmlid method from an instance of the Lookup class instead")
+    return Lookup(cr=cr, registry=registry, uid=uid).xmlid
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
