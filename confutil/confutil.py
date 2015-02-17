@@ -64,14 +64,38 @@ class Lookup(object):
             context=self._context,
         )
 
-    def xmlid(self, module, xmlid):
+    def xmlid(self, module_or_dotted_xmlid, xmlid=None):
         """Return the object with XMLID = 'module.xmlid'.
 
-        module: The module bit of the id (the bit before the dot)
-        xmlid: The bit after the dot
+        This can be called in two ways:
+            self.xmlid(module, xmlid)
+
+                module: The module bit of the id (the bit before the dot) e.g. 'purchase'
+                xmlid:  The bit after the dot e.g. 'route_warehouse0_buy'
+
+
+            self.xmlid(xmlid)
+
+                xmlid: The XMLID as one string e.g. 'purchase.route_warehouse0_buy'
+
+        If the first argument is a string containing a dot '.' then
+        the second signature is assumed.
+        Otherwise the first is expected.
+
+        Note this returns an OBJECT, not a numeric database id.
         """
         IMD = self._registry['ir.model.data']
-        return IMD.get_object(self._cr, self._uid, module, xmlid)
+        if '.' in module_or_dotted_xmlid:
+            module, identifier = module_or_dotted_xmlid.split('.')
+        else:
+            if not isinstance(xmlid, (str, unicode)):
+                raise TypeError('xmlid(module, xmlid) form: xmlid must be a string')
+            module, identifier = module_or_dotted_xmlid, xmlid
+        return IMD.get_object(self._cr, self._uid, module, identifier)
+
+    def xmlid_id(self, module_or_dotted_xmlid, xmlid=None):
+        """Like xmlid() but returns the numeric id"""
+        return self.xmlid(module_or_dotted_xmlid, xmlid).id
 
 
 def set_global_default_product_customer_taxes(cr, registry, uid, company_id, tax_ids, context=None):
