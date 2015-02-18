@@ -277,7 +277,7 @@ def set_warehouse_settings(cr, registry, uid, changes, context=None):
 def get_account_id(cr, registry, uid, company, code, context=None):
     """Get id of a company's account with the given code.
     """
-    _logger.warn('get_account_id: DEPRECATED: consider using Lookup.account_id(company, code) instead')
+    _logger.warn('get_account_id: DEPRECATED: consider using lookup.account_id(company, code) instead')
     return get_exactly_one_id(registry['account.account'], cr, uid,
         [('company_id', '=', company.id), ('code', '=', code)],
         context=context,
