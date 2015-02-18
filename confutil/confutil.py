@@ -388,8 +388,8 @@ def get_field_id(cr, registry, uid, model_name, field_name, context=None):
         context=context,
     )
 
-# TODO Change SUPERUSR_ID in below to 'uid'
-def select_sale_user_level(cr, registry, SUPERUSER_ID, user, level, context=None):
+
+def select_sale_user_level(cr, registry, uid, user, level, context=None):
     """Set user's access level for the Sale application.
 
     Handles the difference in group names between if the 'crm' module is installed
@@ -408,7 +408,7 @@ def select_sale_user_level(cr, registry, SUPERUSER_ID, user, level, context=None
 
     try:
         _logger.debug('select_sale_user_level: Trying level=%r' % (level,))
-        select_user_levels(cr, registry, SUPERUSER_ID,
+        select_user_levels(cr, registry, uid,
             user=user,
             changes={'Sales': level},
             context=context.copy(),
@@ -417,7 +417,7 @@ def select_sale_user_level(cr, registry, SUPERUSER_ID, user, level, context=None
         _logger.debug('select_sale_user_level: Caught NoRecordsError in select_user_levels: %s' % (exc,))
         crm_level = crm_perm_map[level]
         _logger.debug('select_sale_user_level: Trying level=%r instead' % (crm_level,))
-        select_user_levels(cr, registry, SUPERUSER_ID,
+        select_user_levels(cr, registry, uid,
             user=user,
             changes={'Sales': crm_level},
             context=context.copy(),
