@@ -61,6 +61,15 @@ class Lookup(object):
         return self.exactly_one_id('account.tax', [('description', '=', code)])
 
 
+    def account_id(self, company, code):
+        """Return the id of the account for company with given code.
+        """
+        return self.exactly_one_id('account.account', [
+            ('company_id', '=', company.id),
+            ('code', '=', code)
+        ])
+
+
     def xmlid(self, module_or_dotted_xmlid, xmlid=None):
         """Return the object with XMLID = 'module.xmlid'.
 
