@@ -47,6 +47,7 @@ class Lookup(object):
         self._uid = uid
         self._context = context
 
+
     def tax_id_by_code(self, code):
         """Return account.tax id matching given tax_code.
 
@@ -57,12 +58,8 @@ class Lookup(object):
 
         Raises as per get_exactly_one_id if there isn't precisely one match.
         """
-        taxes_model = self._registry['account.tax']
-        return get_exactly_one_id(
-            taxes_model, self._cr, self._uid,
-            [('description', '=', code),],
-            context=self._context,
-        )
+        return self.exactly_one_id('account.tax', [('description', '=', code)])
+
 
     def xmlid(self, module_or_dotted_xmlid, xmlid=None):
         """Return the object with XMLID = 'module.xmlid'.
@@ -93,9 +90,41 @@ class Lookup(object):
             module, identifier = module_or_dotted_xmlid, xmlid
         return IMD.get_object(self._cr, self._uid, module, identifier)
 
+
     def xmlid_id(self, module_or_dotted_xmlid, xmlid=None):
         """Like xmlid() but returns the numeric id"""
         return self.xmlid(module_or_dotted_xmlid, xmlid).id
+
+
+    def exactly_one_id(self, model, domain):
+        """Get exactly one object from model matching domain.
+
+        Raises TooManyRecordsError if more than one record is found.
+        Raises NoRecordsError if no records are found.
+        """
+        modobj = self._autoresolve_model(model)
+        return get_exactly_one_id(modobj, self._cr, self._uid, domain, context=self._context.copy())
+
+
+    def maybe_id(self, model, domain):
+        """Return single record id or None matching the domain.
+
+        Raises TooManyRecordsError if more than one record is found.
+        """
+        return get_maybe_id(self._autoresolve_model(model), self._cr, self._uid,
+            domain=domain,
+            context=self._context.copy(),
+        )
+
+    def _autoresolve_model(self, model):
+        return self.model(model) if isinstance(model, (str, unicode)) else model
+
+
+    def model(self, model_name):
+        """Return model with given name.
+        """
+        return self._registry[model_name]
+
 
 
 def set_global_default_product_customer_taxes(cr, registry, uid, company_id, tax_ids, context=None):
