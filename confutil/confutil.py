@@ -135,6 +135,57 @@ class Lookup(object):
         return self._registry[model_name]
 
 
+class Config(object):
+    def __init__(self, cr, registry, uid, context=None):
+        self._cr = cr
+        self._registry = registry
+        self._uid = uid
+        self._context = context
+
+    def set_ordinary_default(self, model, field_name, value, for_all_users=True, company_id=False, condition=False):
+        """Defines a default value for the given model and field_name. Any previous
+        default for the same scope (model, field_name, value, for_all_users, company_id, condition)
+        will be replaced and lost in the process.
+
+        Defaults can be later retrieved via registry['ir.values'].get_defaults, which will return
+        the highest priority default for any given field. Defaults that are more specific
+        have a higher priority, in the following order (highest to lowest):
+
+            * specific to user and company
+            * specific to user only
+            * specific to company only
+            * global to everyone
+
+        :param string model: model name
+        :param string field_name: field name to which the default applies
+        :param value: the default field value to set
+        :type value: any serializable Python value
+        :param bool for_all_users: whether the default should apply to everybody or only
+                                   the user calling the method
+        :param int company_id: optional ID of the company to which the default should
+                               apply. If omitted, the default will be global. If True
+                               is passed, the current user's company will be used.
+        :param string condition: optional condition specification that can be used to
+                                 restrict the applicability of the default values
+                                 (e.g. based on another field's value). This is an
+                                 opaque string as far as the API is concerned, but client
+                                 stacks typically use single-field conditions in the
+                                 form ``'key=stringified_value'``.
+                                 (Currently, the condition is trimmed to 200 characters,
+                                 so values that share the same first 200 characters always
+                                 match)
+        :return: id of the newly created ir.values entry
+        """
+        self._registry['ir.values'].set_default(self._cr, self._uid,
+            model=model,
+            field_name=field_name,
+            value=value,
+            for_all_users=for_all_users,
+            company_id=company_id,
+            condition=condition,
+        )
+
+
 
 def set_global_default_product_customer_taxes(cr, registry, uid, company_id, tax_ids, context=None):
     """Set global default sales taxes for new products.
