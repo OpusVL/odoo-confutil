@@ -134,6 +134,11 @@ class Lookup(object):
         """
         return self._registry[model_name]
 
+    def model_v8(self, model_name):
+        """Return empty recordset for given model name.
+        """
+        return self._registry[model_name].browse(self._cr, self._uid, [], context=self._context.copy())
+
 
 class Config(object):
     def __init__(self, cr, registry, uid, context=None):
