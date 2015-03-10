@@ -29,6 +29,9 @@ The function you probably want to use is setup_company_accounts()
 from datetime import date
 
 import logging
+
+from . import confutil
+
 _logger = logging.getLogger(__name__)
 
 def setup_company_accounts(cr, registry, uid, company, chart_template, code_digits=None, context=None):
@@ -62,6 +65,16 @@ def setup_company_accounts(cr, registry, uid, company, chart_template, code_digi
             code=fy_code,
             start_date=account_start,
             end_date=account_end,
+            context=context,
+        )
+
+        confutil.set_account_settings(cr, registry, uid,
+            company=company,
+            changes={
+                'date_start': account_start,
+                'date_stop': account_end,
+                'period': 'month',
+            },
             context=context,
         )
 
