@@ -27,6 +27,8 @@ ones where dependent records don't have external IDs, or changes to Settings -> 
 screens need to be made (so execute() has to be called afterwards).
 """
 
+from datetime import date
+
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -45,7 +47,7 @@ class Lookup(object):
         self._cr = cr
         self._registry = registry
         self._uid = uid
-        self._context = context
+        self._context = context or {}
 
 
     def tax_id_by_code(self, code):
@@ -145,7 +147,8 @@ class Config(object):
         self._cr = cr
         self._registry = registry
         self._uid = uid
-        self._context = context
+        self._context = context or {}
+        self._lookup = Lookup(cr, registry, uid, context=context)
 
     def set_ordinary_default(self, model, field_name, value, for_all_users=True, company_id=False, condition=False):
         """Defines a default value for the given model and field_name. Any previous
@@ -190,6 +193,53 @@ class Config(object):
             condition=condition,
         )
 
+    # TODO: Hopefully, in the future...
+    # def setup_company_accounts(self, company, chart_template, code_digits=None, period='month'):
+    #     """This sets up accounts, fiscal year and periods for the given company.
+
+    #     company: A res.company object
+    #     chart_template: An account.chart.template object
+    #     code_digits: The number of digits (the default is dictated by your chosen chart_template)
+    #     period: The accounting period (default: 'month')
+
+    #     A financial year is set up starting this year on 1st Jan and ending this year on 31st Dec.
+    #     """
+    #     today = date.today()
+    #     account_start = today.strftime('%Y-01-01')
+    #     account_end = today.strftime('%Y-12-31')
+    #     set_account_settings(self._cr, self._registry, self._uid,
+    #         company=company,
+    #         changes={
+    #             'chart_template_id': chart_template.id,
+    #             'code_digits': code_digits,
+    #             'date_start': account_start,
+    #             'date_stop': account_end,
+    #             'period': period,
+    #         },
+    #         context=self._context.copy(),
+    #     )
+        
+
+    def set_default_taxes(self, company, sales_code, purchase_code):
+        taxes_model = self._lookup.model('account.tax')
+
+        # 'description' is actually the tax code.  Should be unique.
+        sales_tax_id = self._lookup.exactly_one_id(taxes_model,
+            [('company_id', '=', company.id), ('description', '=', sales_code)],
+        )
+        purchase_tax_id = self._lookup.exactly_one_id(taxes_model,
+            [('company_id', '=', company.id), ('description', '=', purchase_code)],
+        )
+
+        set_account_settings(self._cr, self._registry, self._uid,
+            company=company,
+            changes={
+                'default_sale_tax': sales_tax_id,
+                'default_purchase_tax': purchase_tax_id,
+            },
+            context=self._context,
+        )
+
 
 
 def set_global_default_product_customer_taxes(cr, registry, uid, company_id, tax_ids, context=None):
@@ -230,29 +280,8 @@ def set_default_taxes(cr, registry, uid, company, sales_code, purchase_code, con
     sales_code: e.g. 'ST1UK'
     purchase_code: e.g. 'PT1UK'
     """
-    taxes_model = registry['account.tax']
-
-    # 'description' is actually the tax code.  Should be unique.
-    sales_tax_id = get_exactly_one_id(
-        taxes_model, cr, uid,
-        [('company_id', '=', company.id), ('description', '=', sales_code)],
-        context=context
-    )
-    purchase_tax_id = get_exactly_one_id(
-        taxes_model, cr, uid,
-        [('company_id', '=', company.id), ('description', '=', purchase_code)],
-        context=context
-    )
-
-    set_account_settings(cr, registry, uid,
-        company=company,
-        changes={
-            'default_sale_tax': sales_tax_id,
-            'default_purchase_tax': purchase_tax_id,
-        },
-        context=context,
-    )
-
+    _logger.warn('set_default_taxes: DEPRECATED: consider using config.set_default_taxes(...) instead')
+    Config(cr, registry, uid, context=context).set_default_taxes(company, sales_code, purchase_code)
 
 def enable_multi_currency(cr, registry, uid, company, gain_account_code, loss_account_code, context=None):
     """Set up multi-currency support on the given company.
