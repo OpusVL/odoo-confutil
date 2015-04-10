@@ -108,14 +108,13 @@ class Lookup(object):
 
 
     def exactly_one_id(self, model, domain):
-        """Get exactly one object from model matching domain.
+        """Get exactly one object id from model matching domain.
 
         Raises TooManyRecordsError if more than one record is found.
         Raises NoRecordsError if no records are found.
         """
         modobj = self._autoresolve_model(model)
         return get_exactly_one_id(modobj, self._cr, self._uid, domain, context=self._context.copy())
-
 
     def maybe_id(self, model, domain):
         """Return single record id or None matching the domain.
@@ -140,6 +139,15 @@ class Lookup(object):
         """Return empty recordset for given model name.
         """
         return self._registry[model_name].browse(self._cr, self._uid, [], context=self._context.copy())
+
+    def field_id(self, model_name, field_name):
+        """Return the id for a model field's record in the Odoo database.
+        """
+        return self.exactly_one_id('ir.model.fields', [
+            ('model', '=', model_name),
+            ('name', '=', field_name),
+        ])
+
 
 
 class Config(object):
@@ -462,15 +470,9 @@ def makeref(model_name, identifier):
 
 def get_field_id(cr, registry, uid, model_name, field_name, context=None):
     """Return the id for a model field's record in the Odoo database.
-    """
-    return get_exactly_one_id(
-        registry['ir.model.fields'], cr, uid,
-        [
-            ('model', '=', model_name),
-            ('name', '=', field_name),
-        ],
-        context=context,
-    )
+    """    
+    _logger.warn("get_field_id: DEPRECATED: Please use field_id method from an instance of the Lookup class instead")
+    return Lookup(cr, registry, uid, context=context).field_id(model_name, field_name)
 
 
 def select_sale_user_level(cr, registry, uid, user, level, context=None):
