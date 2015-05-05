@@ -58,7 +58,7 @@ class Lookup(object):
 
         Return type: int
 
-        Raises as per get_exactly_one_id if there isn't precisely one match.
+        Raises as per exactly_one_id if there isn't precisely one match.
         """
         return self.exactly_one_id('account.tax', [('description', '=', code)])
 
@@ -113,18 +113,26 @@ class Lookup(object):
         Raises TooManyRecordsError if more than one record is found.
         Raises NoRecordsError if no records are found.
         """
-        modobj = self._autoresolve_model(model)
-        return get_exactly_one_id(modobj, self._cr, self._uid, domain, context=self._context.copy())
+        retrieved_id = self.maybe_id(model, domain)
+        if retrieved_id is None:
+            raise NoRecordsError("No records matching %r" % domain)
+        else:
+            return retrieved_id
+
 
     def maybe_id(self, model, domain):
         """Return single record id or None matching the domain.
 
         Raises TooManyRecordsError if more than one record is found.
         """
-        return get_maybe_id(self._autoresolve_model(model), self._cr, self._uid,
-            domain=domain,
-            context=self._context.copy(),
-        )
+        modobj = self._autoresolve_model(model)
+        ids = modobj.search(self._cr, self._uid, domain, context=self._context.copy())
+        if len(ids) > 1:
+            raise TooManyRecordsError("More than one record matching %r" % domain)
+        elif len(ids) == 0:
+            return None
+        else:
+            return ids[0]
 
     def _autoresolve_model(self, model):
         return self.model(model) if isinstance(model, (str, unicode)) else model
@@ -296,20 +304,20 @@ def enable_multi_currency(cr, registry, uid, company, gain_account_code, loss_ac
     """
     accounts_model = registry['account.account']
 
+    lookup = Lookup(cr, registry, uid, context=context.copy())
+
     _logger.debug('setup_multi_currency: Get gain account with code %s for company %s'
             % (gain_account_code, company.name))
-    gain_account_id = get_exactly_one_id(
-        accounts_model, cr, uid,
+    gain_account_id = lookup.exactly_one_id(
+        accounts_model,
         [('company_id', '=', company.id), ('code', '=', gain_account_code)],
-        context=context.copy(),
     )
 
     _logger.debug('setup_multi_currency: Get loss account with code %s for company %s'
             % (loss_account_code, company.name))
-    loss_account_id = get_exactly_one_id(
-        accounts_model, cr, uid,
+    loss_account_id = lookup.exactly_one_id(
+        accounts_model,
         [('company_id', '=', company.id), ('code', '=', loss_account_code)],
-        context=context.copy(),
     )
 
     _logger.debug('setup_multi_currency: Call set_account_settings')
@@ -371,9 +379,8 @@ def get_account_id(cr, registry, uid, company, code, context=None):
     """Get id of a company's account with the given code.
     """
     _logger.warn('get_account_id: DEPRECATED: consider using lookup.account_id(company, code) instead')
-    return get_exactly_one_id(registry['account.account'], cr, uid,
+    return Lookup(cr, registry, uid, context=context.copy()).exactly_one_id('account.account',
         [('company_id', '=', company.id), ('code', '=', code)],
-        context=context,
     )
 
 
@@ -386,7 +393,7 @@ def set_settings(cr, registry, uid, settings_model_name, changes, company=None, 
     """
     settings_model = registry[settings_model_name]
     domain = [('company_id', '=', company.id)] if company else []
-    settings_id = get_maybe_id(settings_model, cr, uid, domain, context=context)
+    settings_id = Lookup(cr, registry, uid, context=context).maybe_id(settings_model, domain)
     if settings_id is None:
         data = settings_model.default_get(cr, uid,
             list(settings_model.fields_get(cr, uid, context=context)),
@@ -409,10 +416,9 @@ def create_consolidation_account(cr, registry, uid, company, code, name, childre
     name: Name for the new consolidation account
     children: List of ids of child accounts
     """
-    account_type_view_id = get_exactly_one_id(
-        registry['account.account.type'], cr, uid,
+    account_type_view_id = Lookup(cr, registry, uid, context=context.copy()).exactly_one_id(
+        registry['account.account.type'],
         [('name', '=', 'Root/View')],
-        context=context,
     )
     ADD_EXISTING_ID = 4
     data = {
@@ -568,12 +574,11 @@ def set_user_access_rights(cr, registry, uid, user, changes, context=None):
 
 def _app_group_id(cr, registry, uid, category_name, group_name, context=None):
     if group_name:
-        return get_exactly_one_id(registry['res.groups'], cr, uid,
+        return Lookup(cr, registry, uid, context=context).exactly_one_id('res.groups',
             [
                 ('category_id.name', '=', category_name),
                 ('name', '=', group_name),
             ],
-            context=context,
         )
     else:
         return False
@@ -587,31 +592,6 @@ class TooManyRecordsError(WrongNumberOfRecordsError):
 class NoRecordsError(WrongNumberOfRecordsError):
     pass
 
-def get_exactly_one_id(model, cr, uid, domain, context=None):
-    """Return one record id matching the domain.  Raise if any other number is found.
-
-    Raises TooManyRecordsError if more than one record is found.
-    Raises NoRecordsError if no records are found.
-    """
-    retrieved_id = get_maybe_id(model, cr, uid, domain, context=context)
-    if retrieved_id is None:
-        raise NoRecordsError("No records matching %r" % domain)
-    else:
-        return retrieved_id
-
-
-def get_maybe_id(model, cr, uid, domain, context=None):
-    """Return single record id or None matching the domain.
-
-    Raises TooManyRecordsError if more than one record is found.
-    """
-    ids = model.search(cr, uid, domain, context=context)
-    if len(ids) > 1:
-        raise TooManyRecordsError("More than one record matching %r" % domain)
-    elif len(ids) == 0:
-        return None
-    else:
-        return ids[0]
 
 
 def refgetter(cr, registry, uid):
