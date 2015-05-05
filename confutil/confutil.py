@@ -468,13 +468,6 @@ def makeref(model_name, identifier):
     return '%s,%d' % (model_name, identifier)
 
 
-def get_field_id(cr, registry, uid, model_name, field_name, context=None):
-    """Return the id for a model field's record in the Odoo database.
-    """    
-    _logger.warn("get_field_id: DEPRECATED: Please use field_id method from an instance of the Lookup class instead")
-    return Lookup(cr, registry, uid, context=context).field_id(model_name, field_name)
-
-
 def select_sale_user_level(cr, registry, uid, user, level, context=None):
     """Set user's access level for the Sale application.
 
