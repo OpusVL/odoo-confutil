@@ -430,10 +430,10 @@ def create_consolidation_account(cr, registry, uid, company, code, name, childre
 def set_default_customer_sale_pricelist(cr, registry, uid, company, pricelist, context=None):
     """Set the default customer sale pricelist for a company.
     """
-    field_id = get_field_id(cr, registry, uid,
+    lookup = Lookup(cr, registry, uid, context=context)
+    field_id = lookup.field_id(
         model_name='res.partner',
         field_name='property_product_pricelist',
-        context=context,
     )
     ir_property = registry['ir.property']
     existing_ids = ir_property.search(cr, uid,
