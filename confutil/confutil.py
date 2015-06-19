@@ -27,8 +27,6 @@ ones where dependent records don't have external IDs, or changes to Settings -> 
 screens need to be made (so execute() has to be called afterwards).
 """
 
-from datetime import date
-
 import logging
 _logger = logging.getLogger(__name__)
 
