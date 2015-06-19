@@ -603,7 +603,6 @@ def set_user_access_rights(cr, registry, uid, user, changes, context=None):
 
 
 def _app_group_id(cr, registry, uid, category_name, group_name, context=None):
-    _logger.warn("_app_group_id: DEPRECATED: Please use app_group_id method from an instance of Lookup instead.")
     if group_name:
         return Lookup(cr, registry, uid, context=context).exactly_one_id('res.groups',
             [
