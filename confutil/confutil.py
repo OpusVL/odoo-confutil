@@ -154,7 +154,7 @@ class Lookup(object):
             ('name', '=', field_name),
         ])
 
-    def app_group_id(self, category_name, group_name):
+    def _app_group_id(self, category_name, group_name):
         
         if group_name:
             return self.exactly_one_id('res.groups',
@@ -280,7 +280,7 @@ class Config(object):
         """
         group_field = lambda gid: 'in_group_%d' % (gid,)
         field_changes = {
-            group_field(self._lookup.app_group_id(category, group)): ticked
+            group_field(self._lookup._app_group_id(category, group)): ticked
             for (category, group, ticked) in changes
         }
         user.write(field_changes)
