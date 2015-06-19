@@ -156,6 +156,17 @@ class Lookup(object):
             ('name', '=', field_name),
         ])
 
+    def app_group_id(self, category_name, group_name):
+        
+        if group_name:
+            return self.exactly_one_id('res.groups',
+                [
+                    ('category_id.name', '=', category_name),
+                    ('name', '=', group_name),
+                ],
+            )
+        else:
+            return False
 
 
 class Config(object):
@@ -255,6 +266,26 @@ class Config(object):
             },
             context=self._context,
         )
+
+    def set_user_access_rights(self, user, changes):
+        """Tick/untick user's technical settings.
+
+        user: A v8 user object to modify
+        changes: List of tuples [('Category Name', 'Group Name', True or False), ...]
+
+        e.g.
+            config.set_user_access_rights(admin_user, [
+                ('Technical Settings', 'Addresses in Sales Orders', True),
+                ('Usability', 'Technical Settings', True),
+            ])
+
+        """
+        group_field = lambda gid: 'in_group_%d' % (gid,)
+        field_changes = {
+            group_field(self._lookup.app_group_id(category, group)): ticked
+            for (category, group, ticked) in changes
+        }
+        user.write(field_changes)
 
 
 
@@ -550,7 +581,9 @@ def select_user_levels(cr, registry, uid, user, changes, context=None):
 
 
 def set_user_access_rights(cr, registry, uid, user, changes, context=None):
-    """Tick/untick user's technical settings.
+    """DEPRECATED: Tick/untick user's technical settings.
+
+    Please use Lookup#set_user_access_rights instead.
 
     user: User object to modify
     changes: List of tuples [('Category Name', 'Group Name', True or False), ...]
@@ -565,14 +598,12 @@ def set_user_access_rights(cr, registry, uid, user, changes, context=None):
         )
 
     """
-    group_field = lambda gid: 'in_group_%d' % (gid,)
-    field_changes = {
-        group_field(_app_group_id(cr, registry, uid, category, group, context)): ticked
-        for (category, group, ticked) in changes
-    }
-    user.write(field_changes, context=context)
+    _logger.warn("set_user_access_rights: DEPRECATED: Please use set_user_access_rights method from an instance of the Config class instead")
+    return Config(cr, registry, uid, context=context).set_user_access_rights(user, changes)
+
 
 def _app_group_id(cr, registry, uid, category_name, group_name, context=None):
+    _logger.warn("_app_group_id: DEPRECATED: Please use app_group_id method from an instance of Lookup instead.")
     if group_name:
         return Lookup(cr, registry, uid, context=context).exactly_one_id('res.groups',
             [
