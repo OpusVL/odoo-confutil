@@ -175,6 +175,7 @@ class Config(object):
         self._context = context or {}
         self._lookup = Lookup(cr, registry, uid, context=context)
 
+
     def set_ordinary_default(self, model, field_name, value, for_all_users=True, company_id=False, condition=False):
         """Defines a default value for the given model and field_name. Any previous
         default for the same scope (model, field_name, value, for_all_users, company_id, condition)
@@ -265,6 +266,7 @@ class Config(object):
             context=self._context,
         )
 
+        
     def set_user_access_rights(self, user, changes):
         """Tick/untick user's technical settings.
 
@@ -284,6 +286,69 @@ class Config(object):
             for (category, group, ticked) in changes
         }
         user.write(field_changes)
+        
+
+    def select_sale_user_level(self, user, level):
+        """Set user's access level for the Sale application.
+    
+        Handles the difference in group names between if the 'crm' module is installed
+        or not.
+
+        user: User object to modify
+        level: The level according to the 'sale' module
+               either 'See all Leads', 'See Own Leads', 'Manager' or False
+        """
+        crm_perm_map = {
+            False: False,
+            'See all Leads': 'User: All Leads',
+            'See Own Leads': 'User: Own Leads Only',
+            'Manager': 'Manager',
+        }
+
+        try:
+            _logger.debug('select_sale_user_level: Trying level=%r' % (level,))
+            self.select_user_levels(user=user, changes={'Sales': level})
+        except NoRecordsError, exc:
+            _logger.debug('select_sale_user_level: Caught NoRecordsError in select_user_levels: %s' % (exc,))
+            crm_level = crm_perm_map[level]
+            _logger.debug('select_sale_user_level: Trying level=%r instead' % (crm_level,))
+            select_user_levels(user=user, changes={'Sales': crm_level})
+
+
+    def select_user_levels(self, user, changes):
+        """Set access levels for applications for the given user.
+
+        This is for filling in the items with drop-down boxes under the
+        'Application' header on the user Access Rights tab.
+
+        user: User object to modify
+        changes: Dictionary mapping Category Name: (Group Name or False)
+
+        e.g.
+        
+            config.select_user_level(admin_user, {
+                'Accounting & Finance': 'Financial Manager',
+                'Administration': False,
+            })
+        """
+        res_users = self._lookup.model('res.users')
+        context = self._context.copy()
+
+        is_user_level_field = lambda f: f.startswith('sel_groups_')
+        user_fields = res_users.fields_get(self._cr, self._uid, context=context)
+        level_fields = filter(is_user_level_field, user_fields.keys())
+
+        category_field_map = {
+            user_fields[field]['string']: field
+            for field in level_fields
+        }
+
+        field_changes = {
+            category_field_map[category]: self._lookup._app_group_id(category, group)
+            for category, group in changes.items()
+        }
+
+        user.write(field_changes, context=context)
 
 
 
@@ -504,7 +569,9 @@ def makeref(model_name, identifier):
 
 
 def select_sale_user_level(cr, registry, uid, user, level, context=None):
-    """Set user's access level for the Sale application.
+    """DEPRECATED: Set user's access level for the Sale application.
+
+    Deprecated, use the method on Config object instead.
 
     Handles the difference in group names between if the 'crm' module is installed
     or not.
@@ -513,34 +580,15 @@ def select_sale_user_level(cr, registry, uid, user, level, context=None):
     level: The level according to the 'sale' module
         either 'See all Leads', 'See Own Leads', 'Manager' or False
     """
-    crm_perm_map = {
-        False: False,
-        'See all Leads': 'User: All Leads',
-        'See Own Leads': 'User: Own Leads Only',
-        'Manager': 'Manager',
-    }
-
-    try:
-        _logger.debug('select_sale_user_level: Trying level=%r' % (level,))
-        select_user_levels(cr, registry, uid,
-            user=user,
-            changes={'Sales': level},
-            context=context.copy(),
-        )
-    except NoRecordsError, exc:
-        _logger.debug('select_sale_user_level: Caught NoRecordsError in select_user_levels: %s' % (exc,))
-        crm_level = crm_perm_map[level]
-        _logger.debug('select_sale_user_level: Trying level=%r instead' % (crm_level,))
-        select_user_levels(cr, registry, uid,
-            user=user,
-            changes={'Sales': crm_level},
-            context=context.copy(),
-        )
+    _logger.warn("select_sale_user_level: DEPRECATED: Please use select_sale_user_level method from an instance of the Config class instead")
+    return Config(cr, registry, uid, context=context).select_sale_user_level(user, level)
 
 
 def select_user_levels(cr, registry, uid, user, changes, context=None):
-    """Set access levels for applications for the given user.
+    """DEPRECATED: Set access levels for applications for the given user.
 
+    Deprecated, use the method on Config object instead.
+    
     This is for filling in the items with drop-down boxes under the
     'Application' header on the user Access Rights tab.
 
@@ -556,26 +604,9 @@ def select_user_levels(cr, registry, uid, user, changes, context=None):
             },
             context=context.copy(),
         )
-
-    
     """
-    res_users = registry['res.users']
-
-    is_user_level_field = lambda f: f.startswith('sel_groups_')
-    user_fields = res_users.fields_get(cr, uid, context=context)
-    level_fields = filter(is_user_level_field, user_fields.keys())
-
-    category_field_map = {
-        user_fields[field]['string']: field
-        for field in level_fields
-    }
-
-    field_changes = {
-        category_field_map[category]: _app_group_id(cr, registry, uid, category, group, context)
-        for category, group in changes.items()
-    }
-
-    user.write(field_changes, context=context)
+    _logger.warn("select_user_levels: DEPRECATED: Please use select_user_levels method from an instance of the Config class instead")
+    return Config(cr, registry, uid, context=context).select_user_levels(user, changes)
 
 
 def set_user_access_rights(cr, registry, uid, user, changes, context=None):
@@ -599,17 +630,6 @@ def set_user_access_rights(cr, registry, uid, user, changes, context=None):
     _logger.warn("set_user_access_rights: DEPRECATED: Please use set_user_access_rights method from an instance of the Config class instead")
     return Config(cr, registry, uid, context=context).set_user_access_rights(user, changes)
 
-
-def _app_group_id(cr, registry, uid, category_name, group_name, context=None):
-    if group_name:
-        return Lookup(cr, registry, uid, context=context).exactly_one_id('res.groups',
-            [
-                ('category_id.name', '=', category_name),
-                ('name', '=', group_name),
-            ],
-        )
-    else:
-        return False
 
 class WrongNumberOfRecordsError(Exception):
     pass
