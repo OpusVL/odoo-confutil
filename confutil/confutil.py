@@ -350,6 +350,43 @@ class Config(object):
 
         user.write(field_changes, context=context)
 
+    def set_default_customer_sale_pricelist(self, company, pricelist):
+        """Set the default customer sale pricelist for a company.
+        """
+        context = self._context.copy()
+        field_id = self._lookup.field_id(
+            model_name='res.partner',
+            field_name='property_product_pricelist',
+        )
+        ir_property = self._lookup.model('ir.property')
+        existing_ids = ir_property.search(self._cr, self._uid,
+            [
+                ('company_id', '=', company.id),
+                ('fields_id', '=', field_id),
+                ('res_id', '=', False),
+            ],
+            context=context,
+        )
+        if existing_ids:
+            ir_property.unlink(self._cr, self._uid, existing_ids, context=context)
+        ir_property.create(self._cr, self._uid,
+            dict(
+                company_id=company.id,
+                fields_id=field_id,
+                res_id=False,
+                type='many2one',
+                value_reference=makeref('product.pricelist', pricelist.id),
+            ),
+            context=context,
+        )
+
+def set_default_customer_sale_pricelist(cr, registry, uid, company, pricelist, context=None):
+    """DEPRECATED: Set the default customer sale pricelist for a company.
+
+    Deprecated, please use Config(...).set_default_customer_sale_pricelist(...) instead.
+    """
+    _logger.warn("set_default_customer_sale_pricelist: DEPRECATED: Please use set_default_customer_sale_pricelist method from an instance of the Config class instead")
+    return Config(cr, registry, uid, context=context).set_default_customer_sale_pricelist(company, pricelist)
 
 
 def set_global_default_product_customer_taxes(cr, registry, uid, company_id, tax_ids, context=None):
@@ -527,35 +564,6 @@ def create_consolidation_account(cr, registry, uid, company, code, name, childre
     return registry['account.account'].create(cr, uid, data, context=context)
 
 
-def set_default_customer_sale_pricelist(cr, registry, uid, company, pricelist, context=None):
-    """Set the default customer sale pricelist for a company.
-    """
-    lookup = Lookup(cr, registry, uid, context=context)
-    field_id = lookup.field_id(
-        model_name='res.partner',
-        field_name='property_product_pricelist',
-    )
-    ir_property = registry['ir.property']
-    existing_ids = ir_property.search(cr, uid,
-        [
-            ('company_id', '=', company.id),
-            ('fields_id', '=', field_id),
-            ('res_id', '=', False),
-        ],
-        context=context,
-    )
-    if existing_ids:
-        ir_property.unlink(cr, uid, existing_ids, context=context)
-    ir_property.create(cr, uid,
-        dict(
-            company_id=company.id,
-            fields_id=field_id,
-            res_id=False,
-            type='many2one',
-            value_reference=makeref('product.pricelist', pricelist.id),
-        ),
-        context=context,
-    )
 
 def makeref(model_name, identifier):
     """Return a string reference for an object in the database.
