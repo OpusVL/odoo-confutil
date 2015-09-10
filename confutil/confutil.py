@@ -155,13 +155,27 @@ class Lookup(object):
         ])
 
     def _app_group_id(self, category_name, group_name):
-        
+
         if group_name:
+            # TODO: This may be necessary to prevent translations from obscuring the group names
+            # cr = self._cr
+            # cr.execute("""
+            #     SELECT G.id
+            #     FROM res_groups AS G
+            #         INNER JOIN ir_module_category AS C
+            #         ON C.id = G.category_id
+            #     WHERE G.name = %s
+            #           AND C.name = %s
+            # """, (group_name, category_name))
+            # results = cr.fetchall()
+            # ids = [i for (i,) in results]
+            # assert len(ids) == 1, "not exactly one match"
+            # return ids[0]
             return self.exactly_one_id('res.groups',
-                [
-                    ('category_id.name', '=', category_name),
-                    ('name', '=', group_name),
-                ],
+               [
+                   ('category_id.name', '=', category_name),
+                   ('name', '=', group_name),
+               ],
             )
         else:
             return False
@@ -244,7 +258,7 @@ class Config(object):
     #         },
     #         context=self._context.copy(),
     #     )
-        
+
 
     def set_default_taxes(self, company, sales_code, purchase_code):
         taxes_model = self._lookup.model('account.tax')
@@ -266,7 +280,7 @@ class Config(object):
             context=self._context,
         )
 
-        
+
     def set_user_access_rights(self, user, changes):
         """Tick/untick user's technical settings.
 
@@ -286,11 +300,11 @@ class Config(object):
             for (category, group, ticked) in changes
         }
         user.write(field_changes)
-        
+
 
     def select_sale_user_level(self, user, level):
         """Set user's access level for the Sale application.
-    
+
         Handles the difference in group names between if the 'crm' module is installed
         or not.
 
@@ -298,21 +312,35 @@ class Config(object):
         level: The level according to the 'sale' module
                either 'See all Leads', 'See Own Leads', 'Manager' or False
         """
+
         crm_perm_map = {
-            False: False,
-            'See all Leads': 'User: All Leads',
-            'See Own Leads': 'User: Own Leads Only',
-            'Manager': 'Manager',
+            False: [],
+            'See all Leads': ['User: All Leads'],
+            'See Own Leads': ['User', 'User: Own Leads Only'],
+            'Manager': [],
         }
 
-        try:
-            _logger.debug('select_sale_user_level: Trying level=%r' % (level,))
-            self.select_user_levels(user=user, changes={'Sales': level})
-        except NoRecordsError, exc:
-            _logger.debug('select_sale_user_level: Caught NoRecordsError in select_user_levels: %s' % (exc,))
-            crm_level = crm_perm_map[level]
-            _logger.debug('select_sale_user_level: Trying level=%r instead' % (crm_level,))
-            select_user_levels(user=user, changes={'Sales': crm_level})
+        category_synonyms = [level] + crm_perm_map[level]
+
+        for synonym in category_synonyms:
+            try:
+                return self.select_user_levels(user=user, changes={'Sales': synonym})
+            except NoRecordsError as exc:
+                continue
+        # Got to end of loop without breaking, so didn't find a match
+        raise NoRecordsError("No Sales group called %s" % (
+            ' or '.join(map(repr, category_synonyms))
+        ))
+
+
+        # try:
+        #     _logger.debug('select_sale_user_level: Trying level=%r' % (level,))
+        #     self.select_user_levels(user=user, changes={'Sales': level})
+        # except NoRecordsError, exc:
+        #     _logger.debug('select_sale_user_level: Caught NoRecordsError in select_user_levels: %s' % (exc,))
+        #     crm_level = crm_perm_map[level]
+        #     _logger.debug('select_sale_user_level: Trying level=%r instead' % (crm_level,))
+        #     self.select_user_levels(user=user, changes={'Sales': crm_level})
 
 
     def select_user_levels(self, user, changes):
@@ -325,7 +353,7 @@ class Config(object):
         changes: Dictionary mapping Category Name: (Group Name or False)
 
         e.g.
-        
+
             config.select_user_level(admin_user, {
                 'Accounting & Finance': 'Financial Manager',
                 'Administration': False,
@@ -491,14 +519,14 @@ def set_purchasing_settings(cr, registry, uid, changes, context=None):
     return set_settings(cr, registry, uid, 'purchase.config.settings',
         changes=changes, context=context,
     )
-    
+
 def set_sale_settings(cr, registry, uid, changes, context=None):
     """Set a bunch of sale settings for the whole of Odoo.
     """
     return set_settings(cr, registry, uid, 'sale.config.settings',
         changes=changes, context=context,
     )
-    
+
 def set_warehouse_settings(cr, registry, uid, changes, context=None):
     """Set a bunch of warehouse settings for the whole of Odoo.
     """
@@ -596,7 +624,7 @@ def select_user_levels(cr, registry, uid, user, changes, context=None):
     """DEPRECATED: Set access levels for applications for the given user.
 
     Deprecated, use the method on Config object instead.
-    
+
     This is for filling in the items with drop-down boxes under the
     'Application' header on the user Access Rights tab.
 
@@ -604,7 +632,7 @@ def select_user_levels(cr, registry, uid, user, changes, context=None):
     changes: Dictionary mapping Category Name: (Group Name or False)
 
     e.g.
-    
+
         select_user_level(cr, registry, SUPERUSER_ID, admin_user,
             changes={
                 'Accounting & Finance': 'Financial Manager',
