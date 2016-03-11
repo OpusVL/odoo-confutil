@@ -408,6 +408,29 @@ class Config(object):
             context=context,
         )
 
+    def set_settings(self, settings_model_name, changes, company=None):
+        """Update and execute a settings form.
+
+        settings_model_name: for example 'account.config.settings' or 'base.config.settings'
+        changes: Dictionary mapping field names to their new values.
+        company: If defined, will create or find a config object matching company_id == company.id
+        """
+        settings_model = self._registry[settings_model_name]
+        domain = [('company_id', '=', company.id)] if company else []
+        settings_id = Lookup(self._cr, self._registry, self._uid, context=self._context).maybe_id(settings_model, domain)
+        if settings_id is None:
+            data = settings_model.default_get(self._cr, self._uid,
+                list(settings_model.fields_get(self._cr, self._uid, context=self._context)),
+                context=self._context,
+            )
+            data.update(changes)
+            if company:
+                data['company_id'] = company.id
+            settings_id = settings_model.create(self._cr, self._uid, data, context=self._context)
+        else:
+            settings_model.write(self._cr, self._uid, [settings_id], changes, context=self._context)
+        settings_model.execute(self._cr, self._uid, [settings_id], context=self._context)
+
 def set_default_customer_sale_pricelist(cr, registry, uid, company, pricelist, context=None):
     """DEPRECATED: Set the default customer sale pricelist for a company.
 
